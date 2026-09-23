@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>平地内の標高差・試作</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#173043;background:#f4f7f8}*{box-sizing:border-box}body{margin:0}header{background:#143b52;color:white;padding:16px 24px}h1{font-size:1.25rem;margin:0}main{max-width:1640px;margin:auto;padding:18px;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}.panel{background:white;border:1px solid #d4e0e5;border-radius:10px;padding:16px}#map{width:100%;height:min(78vh,900px);min-height:650px;display:block;touch-action:none;cursor:crosshair;background:#dee6e9}label{display:block;margin:12px 0;font-size:.95rem}select,input{font:inherit;padding:6px;width:100%}button{font:inherit;cursor:pointer;padding:8px 12px;border-radius:6px;border:1px solid #67879a;background:#fff}button:hover{background:#e9f4f6}button.primary{background:#176b84;color:#fff;border-color:#176b84;font-weight:700}button.primary:hover{background:#12566b}button.primary:disabled{opacity:.65;cursor:wait}#mapProgress{display:block;width:100%;height:16px;accent-color:#176b84;margin:6px 0 12px}#mapProgress[hidden]{display:none}#terrainLegend[hidden]{display:none}#terrainLegend{margin:8px 0 14px}#terrainRamp{height:17px;border-radius:4px;background:linear-gradient(to right,#25588c,#3ba4b9,#7acc9e,#f5d66b,#c96d38,#f3efe0)}#terrainLabels{position:relative;height:1.7em;font-size:.85rem;color:#304b59;margin-top:4px}#terrainLabels span{position:absolute;top:0}#terrainMin{left:0}#terrainMid{left:50%;transform:translateX(-50%)}#terrainMax{right:0}#terrainLegend.emphasis #terrainMid{left:70%}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.metric{margin:12px 0;padding:10px;background:#eef4f6;border-radius:6px}.metric strong{display:block;font-size:1.3rem;font-variant-numeric:tabular-nums}.sub{font-size:.85rem;color:#47606d}#status{min-height:2em;color:#28516a}.key{display:flex;gap:16px;font-size:.85rem}.swatch{display:inline-block;width:12px;height:12px;vertical-align:middle;margin-right:4px}footer{max-width:1640px;margin:auto;padding:0 18px 30px;color:#445966;font-size:.9rem;line-height:1.6}@media(max-width:760px){main{display:block;padding:10px}.panel{margin-bottom:12px}#map{height:68vh;min-height:400px}}
+</style></head><body><header><h1>平地内の標高差・試作</h1></header><main><section class="panel"><div class="row"><button id="zin">拡大</button><button id="zout">縮小</button><button id="home">岐阜市へ</button><button id="calculate" class="primary">計算開始</button><button id="terrainButton">地形表示</button><span class="sub">地図をドラッグして移動，クリックして地点を選択</span></div><canvas id="map"></canvas><p id="mapStatus" class="sub" role="status">地図を移動して「計算開始」を押してください。</p><progress id="mapProgress" max="100" value="0" hidden aria-label="地形解析の進捗"></progress><div id="terrainLegend" hidden><div id="terrainRamp"></div><div id="terrainLabels"><span id="terrainMin"></span><span id="terrainMid"></span><span id="terrainMax"></span></div><div id="terrainSources" class="sub"></div><div class="sub">標高50 m以下の配色を広げて表示します（切り替え可能）。移動すると色と標高の対応は変わります。</div></div><p class="key"><span><i class="swatch" style="background:#b4bdc4"></i>山地</span><span><i class="swatch" style="background:#f8dc5a"></i>0.5–1 m</span><span><i class="swatch" style="background:#ff9f43"></i>1–2 m</span><span><i class="swatch" style="background:#ec644f"></i>2–3 m</span><span><i class="swatch" style="background:#b52e59"></i>3–5 m</span><span><i class="swatch" style="background:#61266d"></i>5 m以上</span></p><p class="sub">平地内平均との差が0.5 m以上の地点を表示。DEMを粗くすると細かな凹地は見えなくなります。無着色は安全を意味せず，欠測・判定不能も含みます。</p></section><aside class="panel"><label>計算用DEMの解像度 <select id="demZoom"><option value="12">ズーム12（速い・粗い）</option><option value="13" selected>ズーム13（標準）</option><option value="14">ズーム14（細かい・遅い）</option></select></label><label>地形表示の配色 <select id="terrainScale"><option value="plain" selected>平野を強調（50 m以下）</option><option value="linear">最小～最大を均等に表示</option></select></label><label>比較半径 <select id="radius"><option value="250">250 m</option><option value="500" selected>500 m</option><option value="1000">1 km</option></select></label><label>平地の傾斜上限 <select id="slope"><option value="3">3°</option><option value="5">5°</option><option value="8" selected>8°</option></select></label><label>周囲150 mの起伏上限 <select id="relief"><option value="15">15 m</option><option value="30">30 m</option><option value="50" selected>50 m</option></select></label><div id="status" role="status">地点を選択してください。</div><div class="metric">地点の標高<strong id="elevation">—</strong></div><div class="metric">全陸地平均との差<strong id="all">—</strong><span class="sub" id="allmean"></span></div><div class="metric">平地内平均との差<strong id="flat">—</strong><span class="sub" id="flatmean"></span></div><div class="metric">円内の平地割合<strong id="share">—</strong></div><p class="sub">標高差＝地点標高 − 円内平均。負の値は周囲より低いことを示します。平地面積が有効画素の10%未満なら判定しません。</p></aside></main><footer>出典：<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院・地理院タイル</a>（標準地図，標高タイル）。標高タイルを加工して作成。傾斜と起伏の閾値は検証前の試験値です。この値は浸水深・洪水危険度・閉じた凹地を表しません。</footer>
+<script type="module">
+let Z=13;const C=document.querySelector('#map'),ctx=C.getContext('2d');
+const ids=Object.fromEntries(['demZoom','terrainScale','radius','slope','relief','status','elevation','all','flat','allmean','flatmean','share','mapStatus','mapProgress','calculate','terrainButton','terrainLegend','terrainMin','terrainMid','terrainMax','terrainSources'].map(id=>[id,document.getElementById(id)]));
+const state={lat:35.426,lon:136.761,zoom:14,point:null,mask:null,busy:0,overlay:null,overlaySeq:0,loadController:null,terrainData:null};
+const elevationTiles=new Map(),mapTiles=new Map();const R=6371008.8;
+const world=(lon,lat,z)=>({x:(lon+180)/360*256*2**z,y:(1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*256*2**z});
+const geo=(x,y,z)=>({lon:x/(256*2**z)*360-180,lat:Math.atan(Math.sinh(Math.PI*(1-2*y/(256*2**z))))*180/Math.PI});
+const mpp=lat=>2*Math.PI*R*Math.cos(lat*Math.PI/180)/(256*2**Z);
+const key=(x,y)=>`${x}/${y}`;
+function resize(){const b=C.getBoundingClientRect(),d=devicePixelRatio||1;C.width=Math.round(b.width*d);C.height=Math.round(b.height*d);ctx.setTransform(d,0,0,d,0,0);draw()}
+function view(){return {w:C.clientWidth,h:C.clientHeight,c:world(state.lon,state.lat,state.zoom)}}
+function image(x,y){const k=`${state.zoom}/${x}/${y}`;if(mapTiles.has(k))return mapTiles.get(k);const im=new Image();im.onload=draw;im.onerror=()=>{mapTiles.set(k,null)};im.src=`https://cyberjapandata.gsi.go.jp/xyz/std/${state.zoom}/${x}/${y}.png`;mapTiles.set(k,im);return im}
+function draw(){const {w,h,c}=view();ctx.clearRect(0,0,w,h);ctx.fillStyle='#e2e9eb';ctx.fillRect(0,0,w,h);const left=c.x-w/2,top=c.y-h/2;
+for(let ty=Math.floor(top/256);ty<=Math.floor((top+h)/256);ty++)for(let tx=Math.floor(left/256);tx<=Math.floor((left+w)/256);tx++){const im=image(tx,ty);if(im?.complete&&im.naturalWidth)ctx.drawImage(im,tx*256-left,ty*256-top,256,256)}
+if(state.overlay){const o=state.overlay,ratio=2**(Z-state.zoom);ctx.imageSmoothingEnabled=false;ctx.drawImage(o.image,(o.x0-left*ratio)/ratio,(o.y0-top*ratio)/ratio,o.image.width/ratio,o.image.height/ratio);ctx.imageSmoothingEnabled=true}if(state.mask){const m=state.mask,p=world(m.lon,m.lat,state.zoom),scale=2**(state.zoom-Z);ctx.strokeStyle='#dc334c';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x-left,p.y-top,m.radius/mpp(m.lat)*scale,0,Math.PI*2);ctx.stroke()}
+if(state.point){const p=world(state.point.lon,state.point.lat,state.zoom);ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.beginPath();ctx.arc(p.x-left,p.y-top,8,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='#087fbc';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x-left,p.y-top,8,0,Math.PI*2);ctx.stroke()}}
+function decode(r,g,b){const u=r*65536+g*256+b;if(u===8388608)return NaN;return (u<8388608?u:u-16777216)*.01}
+const DEM_SOURCES=['dem1a_png','dem5a_png','dem5b_png','dem5c_png','dem_png'];
+const DEM_LABELS=['DEM1A','DEM5A','DEM5B','DEM5C','DEM10B'];
+async function sourceTile(source,x,y){
+  const z=Z,k=`source/${source}/${z}/${key(x,y)}`,signal=state.loadController?.signal;
+  const existing=elevationTiles.get(k);if(existing&&!existing.signal?.aborted)return existing.promise;
+  const entry={promise:null,signal};
+  const promise=(async()=>{
+    const res=await fetch(`https://cyberjapandata.gsi.go.jp/xyz/${source}/${z}/${x}/${y}.png`,{signal});
+    if(res.status===404)return null;
+    if(!res.ok)throw Error(`${source} HTTP ${res.status}`);
+    const blob=await res.blob();if(blob.type&&blob.type!=='image/png')throw Error(`${source} はPNGではありません`);
+    const bitmap=await createImageBitmap(blob),off=document.createElement('canvas');off.width=off.height=256;
+    const co=off.getContext('2d',{willReadFrequently:true});co.drawImage(bitmap,0,0);bitmap.close();
+    const rgba=co.getImageData(0,0,256,256).data,values=new Float32Array(65536);values.fill(NaN);
+    for(let i=0;i<values.length;i++)if(rgba[i*4+3])values[i]=decode(rgba[i*4],rgba[i*4+1],rgba[i*4+2]);
+    return values;
+  })();
+  entry.promise=promise;elevationTiles.set(k,entry);
+  try{const result=await promise;entry.signal=null;return result}
+  catch(e){if(elevationTiles.get(k)===entry)elevationTiles.delete(k);throw e}
+}
+async function tile(x,y){
+  const z=Z,k=`merged/${z}/${key(x,y)}`,signal=state.loadController?.signal;
+  const existing=elevationTiles.get(k);if(existing&&!existing.signal?.aborted)return existing.promise;
+  const entry={promise:null,signal};
+  const promise=(async()=>{
+    const values=new Float32Array(65536),sourceIds=new Uint8Array(65536),sourceCounts=new Uint32Array(DEM_SOURCES.length);
+    values.fill(NaN);let missing=values.length;
+    for(let sourceIndex=0;sourceIndex<DEM_SOURCES.length&&missing;sourceIndex++){
+      const source=await sourceTile(DEM_SOURCES[sourceIndex],x,y);
+      if(!source)continue;
+      for(let i=0;i<values.length;i++)if(!Number.isFinite(values[i])&&Number.isFinite(source[i])){
+        values[i]=source[i];sourceIds[i]=sourceIndex+1;sourceCounts[sourceIndex]++;missing--;
+      }
+    }
+    values.sourceIds=sourceIds;values.sourceCounts=sourceCounts;
+    return values;
+  })();
+  entry.promise=promise;elevationTiles.set(k,entry);
+  try{const result=await promise;entry.signal=null;return result}
+  catch(e){if(elevationTiles.get(k)===entry)elevationTiles.delete(k);throw e}
+}
+
+async function analyze(){if(!state.point)return;const id=++state.busy,point=state.point,radius=+ids.radius.value,slopeLimit=+ids.slope.value,reliefLimit=+ids.relief.value;state.mask=null;draw();ids.status.textContent='標高タイルを読み込み中…';const p=world(point.lon,point.lat,Z),spacing=mpp(point.lat),rp=Math.ceil(radius/spacing),halo=Math.ceil(150/spacing)+7,x0=Math.floor(p.x-rp-halo),x1=Math.ceil(p.x+rp+halo),y0=Math.floor(p.y-rp-halo),y1=Math.ceil(p.y+rp+halo);const needed=[];for(let y=Math.floor(y0/256);y<=Math.floor(y1/256);y++)for(let x=Math.floor(x0/256);x<=Math.floor(x1/256);x++)needed.push([x,y]);
+try{await Promise.all(needed.map(([x,y])=>tile(x,y)));if(id!==state.busy)return;const grids=new Map();for(const [x,y] of needed)grids.set(key(x,y),await tile(x,y));const sample=(x,y)=>{x=Math.floor(x);y=Math.floor(y);const a=grids.get(key(Math.floor(x/256),Math.floor(y/256)));return a?.[((y%256+256)%256)*256+(x%256+256)%256]??NaN};const elevation=sample(p.x,p.y);if(!Number.isFinite(elevation))throw new Error('選択地点に標高データがありません。');ids.status.textContent='平地を分類して平均を計算中…';await new Promise(requestAnimationFrame);if(id!==state.busy)return;
+let allSum=0,allN=0,flatSum=0,flatN=0;const pts=[],s=Math.max(1,Math.round(50/spacing)),r=Math.max(1,Math.round(150/spacing));const bearings=Array.from({length:16},(_,i)=>[Math.cos(i*Math.PI/8)*r,Math.sin(i*Math.PI/8)*r]);
+for(let dy=-rp;dy<=rp;dy++)for(let dx=-rp;dx<=rp;dx++){if(dx*dx+dy*dy>rp*rp)continue;const x=Math.floor(p.x)+dx,y=Math.floor(p.y)+dy,z=sample(x,y);if(!Number.isFinite(z))continue;const lat=geo(x,y,Z).lat,weight=Math.cos(lat*Math.PI/180);allSum+=z*weight;allN+=weight;
+const e=sample(x+s,y),w=sample(x-s,y),n=sample(x,y-s),south=sample(x,y+s);let flat=false;if([e,w,n,south].every(Number.isFinite)){const angle=Math.atan(Math.hypot((e-w)/(2*s*spacing),(south-n)/(2*s*spacing)))*180/Math.PI;if(angle<=slopeLimit){let lo=z,hi=z,complete=true;for(const [vx,vy] of bearings){const q=sample(x+vx,y+vy);if(!Number.isFinite(q)){complete=false;break}lo=Math.min(lo,q);hi=Math.max(hi,q)}flat=complete&&hi-lo<=reliefLimit}}
+if(flat){flatSum+=z*weight;flatN+=weight}if(dx%4===0&&dy%4===0)pts.push({x,y,flat})}
+const allMean=allSum/allN,share=flatN/allN,flatMean=flatSum/flatN;ids.elevation.textContent=`${elevation.toFixed(1)} m`;ids.all.textContent=`${(elevation-allMean).toFixed(1)} m`;ids.allmean.textContent=`円内平均 ${allMean.toFixed(1)} m`;ids.share.textContent=`${(share*100).toFixed(0)}%`;ids.flat.textContent=share>=.1?`${(elevation-flatMean).toFixed(1)} m`:'判定不能';ids.flatmean.textContent=share>=.1?`平地内平均 ${flatMean.toFixed(1)} m`:'平地画素が10%未満';ids.status.textContent=`${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}・標高DEM z${Z}`;state.mask={...point,cx:Math.floor(p.x),cy:Math.floor(p.y),radius,points:pts};draw();
+}catch(e){if(id!==state.busy)return;ids.status.textContent=`計算できませんでした：${e.message}`;ids.elevation.textContent=ids.all.textContent=ids.flat.textContent=ids.share.textContent='—';ids.allmean.textContent=ids.flatmean.textContent='';draw()}}
+
+// Each DEM pixel is classified once. Circular area sums then use row prefixes.
+function clearPointValues(){for(const name of ['elevation','all','flat','share'])ids[name].textContent='—';ids.allmean.textContent=ids.flatmean.textContent=''}
+function stopAnalysis(message){
+  state.loadController?.abort();state.loadController=null;
+  ++state.overlaySeq;++state.busy;state.overlay=null;state.mask=null;state.terrainData=null;
+  ids.calculate.disabled=false;ids.calculate.textContent='計算開始';ids.terrainButton.disabled=false;ids.terrainButton.textContent='地形表示';ids.terrainLegend.hidden=true;ids.mapProgress.hidden=true;ids.mapProgress.value=0;
+  ids.mapStatus.textContent=message;ids.status.textContent=state.point?'選択地点も「計算開始」で更新します。':'地点を選択してください。';
+  clearPointValues();draw();
+}
+function startAnalysis(){
+  stopAnalysis('標高データを読み込み中…');
+  state.loadController=new AbortController();const id=++state.overlaySeq;
+  ids.calculate.disabled=true;ids.calculate.textContent='計算中…';ids.mapProgress.hidden=false;ids.mapProgress.value=0;
+  void computeOverlay(id);if(state.point)void analyze();
+}
+function startTerrain(){
+  stopAnalysis('表示範囲のDEMを取得中…');state.loadController=new AbortController();const id=++state.overlaySeq;
+  ids.terrainButton.disabled=true;ids.terrainButton.textContent='取得中…';ids.mapProgress.hidden=false;ids.mapProgress.value=0;
+  void computeTerrain(id);
+}
+function showProgress(id,stage,current,total,from,to){
+  if(id!==state.overlaySeq)return;
+  const ratio=total?Math.min(1,current/total):0,percent=Math.min(99,Math.round(from+(to-from)*ratio));
+  ids.mapProgress.value=percent;
+  ids.mapStatus.textContent=`${stage}：${current.toLocaleString()} / ${total.toLocaleString()}（${percent}%）`;
+}
+async function computeOverlay(id){
+  const started=performance.now();
+  const {w,h,c}=view(),zoom=state.zoom,ratio=2**(Z-zoom),center=world(state.lon,state.lat,Z);
+  const longitude=state.lon,latitude=state.lat,radius=+ids.radius.value,
+        slopeLimit=+ids.slope.value,reliefLimit=+ids.relief.value;
+  const spacing=mpp(latitude),rp=radius/spacing,halo=150/spacing+8,grid=1;
+  if(rp<8){if(id===state.overlaySeq){ids.mapStatus.textContent='この半径には計算用DEMが粗すぎます。解像度を上げてください。';ids.calculate.disabled=false;ids.calculate.textContent='計算開始';ids.mapProgress.hidden=true}return}
+  const left=center.x-w*ratio/2,top=center.y-h*ratio/2;
+  const x0=Math.floor((left-rp-halo*2)/grid)*grid,y0=Math.floor((top-rp-halo*2)/grid)*grid;
+  const cols=Math.ceil((w*ratio+2*rp+4*halo)/grid)+3,rows=Math.ceil((h*ratio+2*rp+4*halo)/grid)+3;
+  const x1=x0+cols*grid,y1=y0+rows*grid;
+  const tx0=Math.floor(x0/256),tx1=Math.floor(x1/256),ty0=Math.floor(y0/256),ty1=Math.floor(y1/256);
+  const tileCount=(tx1-tx0+1)*(ty1-ty0+1);
+  if(tileCount>96||cols*rows>3200000){if(id===state.overlaySeq){ids.mapStatus.textContent='表示範囲が広すぎます。拡大して解析してください。';ids.calculate.disabled=false;ids.calculate.textContent='計算開始';ids.mapProgress.hidden=true}return}
+  try{
+    const needed=[];for(let ty=ty0;ty<=ty1;ty++)for(let tx=tx0;tx<=tx1;tx++)needed.push([tx,ty]);
+    let loaded=0;showProgress(id,'標高データ読み込み',0,needed.length,0,25);
+    const fetched=await Promise.all(needed.map(async ([x,y])=>{const data=await tile(x,y);loaded++;showProgress(id,'標高データ読み込み',loaded,needed.length,0,25);return data}));
+    showProgress(id,'山地・平地の分類',0,rows,25,55);
+    if(id!==state.overlaySeq)return;
+    const tiles=new Map();needed.forEach(([x,y],i)=>tiles.set(key(x,y),fetched[i]));
+    const sample=(x,y)=>{x=Math.floor(x);y=Math.floor(y);const a=tiles.get(key(Math.floor(x/256),Math.floor(y/256)));return a?.[((y%256+256)%256)*256+(x%256+256)%256]??NaN};
+    const slopeSpan=Math.max(1,Math.round(50/spacing)),reliefSpan=Math.max(1,Math.round(150/spacing));
+    const bearings=Array.from({length:16},(_,i)=>[Math.cos(i*Math.PI/8)*reliefSpan,Math.sin(i*Math.PI/8)*reliefSpan]);
+    const stride=cols+1,size=stride*(rows+1),sum=new Float64Array(size),flatArea=new Float64Array(size),validArea=new Float64Array(size),flags=new Uint8Array(cols*rows);
+    for(let row=0;row<rows;row++){
+      let runSum=0,runFlat=0,runValid=0;
+      const y=y0+(row+.5)*grid,weight=Math.cos(geo(0,y,Z).lat*Math.PI/180);
+      for(let col=0;col<cols;col++){
+        const x=x0+(col+.5)*grid,z=sample(x,y);let flat=false,classified=false;
+        if(Number.isFinite(z)){
+          runValid+=weight;
+          const e=sample(x+slopeSpan,y),west=sample(x-slopeSpan,y),north=sample(x,y-slopeSpan),south=sample(x,y+slopeSpan);
+          if(Number.isFinite(e)&&Number.isFinite(west)&&Number.isFinite(north)&&Number.isFinite(south)){
+            const angle=Math.atan(Math.hypot((e-west)/(2*slopeSpan*spacing),(south-north)/(2*slopeSpan*spacing)))*180/Math.PI;
+            if(angle>slopeLimit)classified=true;else{let low=z,high=z,complete=true;
+              for(const [vx,vy] of bearings){const v=sample(x+vx,y+vy);if(!Number.isFinite(v)){complete=false;break}low=Math.min(low,v);high=Math.max(high,v)}
+              classified=complete;flat=complete&&high-low<=reliefLimit;
+            }
+          }
+        }
+        if(flat){runSum+=z*weight;runFlat+=weight;flags[row*cols+col]=1}else if(classified)flags[row*cols+col]=2
+        const i=(row+1)*stride+col+1,above=row*stride+col+1;
+        sum[i]=sum[above]+runSum;flatArea[i]=flatArea[above]+runFlat;validArea[i]=validArea[above]+runValid;
+      }
+      if(row%24===0||row===rows-1){showProgress(id,'山地・平地の分類',row+1,rows,25,55);await new Promise(requestAnimationFrame);if(id!==state.overlaySeq)return}
+    }
+    // Rasterize every DEM cell whose center lies inside the current view.
+    const imageX=Math.floor(left),imageY=Math.floor(top);
+    const out=document.createElement('canvas');out.width=Math.ceil(left+w*ratio)-imageX;out.height=Math.ceil(top+h*ratio)-imageY;
+    showProgress(id,'各地点の標高差計算',0,out.height,55,98);
+    let colored=0,mountains=0,flatCells=0;
+    const octx=out.getContext('2d'),pixels=octx.createImageData(out.width,out.height),colors=[[248,220,90],[255,159,67],[236,100,79],[181,46,89],[97,38,109]];
+    for(let oy=0;oy<out.height;oy++){
+      const wy=imageY+oy+.5,gy=(wy-y0)/grid,rowIndex=Math.floor(gy);
+      for(let ox=0;ox<out.width;ox++){
+        const wx=imageX+ox+.5,gx=(wx-x0)/grid,ci=Math.floor(gx);
+        if(ci<0||ci>=cols||rowIndex<0||rowIndex>=rows)continue;
+        const category=flags[rowIndex*cols+ci],j=(oy*out.width+ox)*4;
+        if(category===2){pixels.data[j]=180;pixels.data[j+1]=189;pixels.data[j+2]=196;pixels.data[j+3]=145;mountains++;continue}
+        if(category!==1)continue;
+        flatCells++;
+        const z=sample(wx,wy);if(!Number.isFinite(z))continue;
+        let weightedSum=0,area=0,valid=0;
+        const rGrid=(radius/mpp(geo(wx,wy,Z).lat))/grid;
+        const lowRow=Math.max(0,Math.ceil(gy-rGrid-.5)),highRow=Math.min(rows-1,Math.floor(gy+rGrid-.5));
+        for(let row=lowRow;row<=highRow;row++){
+          const d=row+.5-gy,dx=Math.sqrt(Math.max(0,rGrid*rGrid-d*d));
+          const a=Math.max(0,Math.ceil(gx-dx-.5)),b=Math.min(cols,Math.floor(gx+dx-.5)+1);
+          if(a>=b)continue;
+          const lo=(row+1)*stride+a,hi=(row+1)*stride+b,upLo=row*stride+a,upHi=row*stride+b;
+          weightedSum+=sum[hi]-sum[lo]-sum[upHi]+sum[upLo];
+          area+=flatArea[hi]-flatArea[lo]-flatArea[upHi]+flatArea[upLo];
+          valid+=validArea[hi]-validArea[lo]-validArea[upHi]+validArea[upLo];
+        }
+        if(!valid||area/valid<.1)continue;
+        const depth=weightedSum/area-z;if(depth<.5)continue;
+        const color=colors[depth<1?0:depth<2?1:depth<3?2:depth<5?3:4];
+        pixels.data[j]=color[0];pixels.data[j+1]=color[1];pixels.data[j+2]=color[2];pixels.data[j+3]=172;colored++;
+      }
+      if(oy%6===0||oy===out.height-1){showProgress(id,'各地点の標高差計算',oy+1,out.height,55,98);await new Promise(requestAnimationFrame);if(id!==state.overlaySeq)return}
+    }
+    showProgress(id,'結果を表示中',0,1,98,99);
+    octx.putImageData(pixels,0,0);
+    if(id!==state.overlaySeq||zoom!==state.zoom||longitude!==state.lon||latitude!==state.lat||w!==C.clientWidth||h!==C.clientHeight)return;
+    state.overlay={image:out,x0:imageX,y0:imageY};draw();ids.calculate.disabled=false;ids.calculate.textContent='計算開始';ids.mapProgress.value=100;ids.mapStatus.textContent=`完了：低地${colored.toLocaleString()}画素，山地${mountains.toLocaleString()}画素，平地${flatCells.toLocaleString()}画素／DEM約${Math.round(mpp(latitude))} m間隔・${((performance.now()-started)/1000).toFixed(1)}秒`;
+  }catch(e){if(id===state.overlaySeq){ids.calculate.disabled=false;ids.calculate.textContent='計算開始';ids.mapProgress.hidden=true;ids.mapStatus.textContent=`地図全体を解析できませんでした：${e.message}`}}
+}
+
+
+const TERRAIN_COLORS=[[37,88,140],[59,164,185],[122,204,158],[245,214,107],[201,109,56],[243,239,224]];
+function elevationColor(value,min,max,plain){
+  let t=max===min?.5:(value-min)/(max-min);
+  if(plain&&min<50&&max>50)t=value<=50?.7*(value-min)/(50-min):.7+.3*(value-50)/(max-50);
+  t=Math.max(0,Math.min(1,t));
+  const scaled=t*(TERRAIN_COLORS.length-1),i=Math.min(TERRAIN_COLORS.length-2,Math.floor(scaled)),f=scaled-i;
+  return TERRAIN_COLORS[i].map((channel,j)=>Math.round(channel*(1-f)+TERRAIN_COLORS[i+1][j]*f));
+}
+async function computeTerrain(id){
+  const started=performance.now(),{w,h}=view(),mapZoom=state.zoom,sourceZoom=Z;
+  const center=world(state.lon,state.lat,sourceZoom),ratio=2**(sourceZoom-mapZoom);
+  const left=center.x-w*ratio/2,top=center.y-h*ratio/2,x0=Math.floor(left),y0=Math.floor(top);
+  const width=Math.ceil(left+w*ratio)-x0,height=Math.ceil(top+h*ratio)-y0;
+  const tx0=Math.floor(x0/256),tx1=Math.floor((x0+width-1)/256);
+  const ty0=Math.floor(y0/256),ty1=Math.floor((y0+height-1)/256);
+  const tilesNeeded=[];for(let ty=ty0;ty<=ty1;ty++)for(let tx=tx0;tx<=tx1;tx++)tilesNeeded.push([tx,ty]);
+  if(width*height>3200000||tilesNeeded.length>96){if(id===state.overlaySeq){ids.terrainButton.disabled=false;ids.terrainButton.textContent='地形表示';ids.mapProgress.hidden=true;ids.mapStatus.textContent='表示範囲が広すぎます。地図を拡大するか粗いDEMを選んでください。'}return}
+  try{
+    let loaded=0;showProgress(id,'DEMタイル取得',0,tilesNeeded.length,0,25);
+    const downloaded=await Promise.all(tilesNeeded.map(async ([x,y])=>{const data=await tile(x,y);loaded++;showProgress(id,'DEMタイル取得',loaded,tilesNeeded.length,0,25);return data}));
+    if(id!==state.overlaySeq)return;
+    const tiles=new Map();tilesNeeded.forEach(([x,y],i)=>tiles.set(key(x,y),downloaded[i]));
+    const available=downloaded.filter(v=>v.sourceCounts.some(count=>count>0)).length;
+    const sample=(x,y)=>{const tileData=tiles.get(key(Math.floor(x/256),Math.floor(y/256)));return tileData?.[((y%256+256)%256)*256+(x%256+256)%256]??NaN};
+    const values=new Float32Array(width*height);values.fill(NaN);
+    let min=Infinity,max=-Infinity,valid=0;const visibleSourceIds=new Uint8Array(width*height),visibleSourceCounts=new Uint32Array(DEM_SOURCES.length);
+    showProgress(id,'DEM最小・最大標高の確認',0,height,25,55);
+    for(let row=0;row<height;row++){
+      for(let col=0;col<width;col++){
+        const px=x0+col,py=y0+row,tileData=tiles.get(key(Math.floor(px/256),Math.floor(py/256)));
+        const index=((py%256+256)%256)*256+(px%256+256)%256,value=tileData?.[index]??NaN;
+        values[row*width+col]=value;
+        if(Number.isFinite(value)){
+          min=Math.min(min,value);max=Math.max(max,value);valid++;
+          const sourceId=tileData.sourceIds[index];visibleSourceIds[row*width+col]=sourceId;
+          if(sourceId)visibleSourceCounts[sourceId-1]++;
+        }
+      }
+      if(row%32===0||row===height-1){showProgress(id,'DEM最小・最大標高の確認',row+1,height,25,55);await new Promise(requestAnimationFrame);if(id!==state.overlaySeq)return}
+    }
+    if(!valid)throw Error('表示範囲に有効な標高値がありません');
+    const out=document.createElement('canvas');out.width=width;out.height=height;
+    const outContext=out.getContext('2d'),image=outContext.createImageData(width,height);
+    showProgress(id,'標高に色を割り当て中',0,height,55,98);
+    for(let row=0;row<height;row++){
+      for(let col=0;col<width;col++){
+        const i=row*width+col,value=values[i];if(!Number.isFinite(value))continue;
+        const color=elevationColor(value,min,max,ids.terrainScale.value==='plain'),j=i*4;
+        image.data[j]=color[0];image.data[j+1]=color[1];image.data[j+2]=color[2];image.data[j+3]=220;
+      }
+      if(row%16===0||row===height-1){showProgress(id,'標高に色を割り当て中',row+1,height,55,98);await new Promise(requestAnimationFrame);if(id!==state.overlaySeq)return}
+    }
+    outContext.putImageData(image,0,0);
+    if(id!==state.overlaySeq||mapZoom!==state.zoom||sourceZoom!==Z||w!==C.clientWidth||h!==C.clientHeight)return;
+    state.overlay={image:out,x0,y0};state.terrainData={values,sourceIds:visibleSourceIds,width,height,x0,y0,zoom:sourceZoom};draw();
+    ids.terrainLegend.classList.toggle('emphasis',ids.terrainScale.value==='plain'&&min<50&&max>50);
+    ids.terrainMin.textContent=`最小 ${min.toFixed(1)} m`;ids.terrainMid.textContent=ids.terrainScale.value==='plain'&&min<50&&max>50?'強調境界 50.0 m':`中間 ${((min+max)/2).toFixed(1)} m`;ids.terrainMax.textContent=`最大 ${max.toFixed(1)} m`;
+    ids.terrainSources.textContent=DEM_LABELS.map((name,i)=>`${name} ${visibleSourceCounts[i].toLocaleString()}`).filter((_,i)=>visibleSourceCounts[i]>0).join('／');
+    ids.terrainLegend.hidden=false;ids.terrainButton.disabled=false;ids.terrainButton.textContent='地形表示';ids.mapProgress.value=100;
+    ids.mapStatus.textContent=`DEM表示完了：タイル${available}/${tilesNeeded.length}枚，有効${valid.toLocaleString()}/${values.length.toLocaleString()}画素，最小${min.toFixed(1)} m，最大${max.toFixed(1)} m・${((performance.now()-started)/1000).toFixed(1)}秒`;
+  }catch(e){if(id===state.overlaySeq){ids.terrainButton.disabled=false;ids.terrainButton.textContent='地形表示';ids.mapProgress.hidden=true;ids.mapStatus.textContent=`地形表示に失敗しました：${e.message}`}}
+}
+
+let down=null;
+C.addEventListener('pointerdown',e=>{C.setPointerCapture(e.pointerId);down={x:e.clientX,y:e.clientY,lon:state.lon,lat:state.lat,moved:false}});
+C.addEventListener('pointermove',e=>{
+  if(!down)return;
+  const dx=e.clientX-down.x,dy=e.clientY-down.y;
+  if(Math.hypot(dx,dy)>4&&!down.moved){down.moved=true;stopAnalysis('移動中：計算を中断しました。')}
+  if(!down.moved)return;
+  const start=world(down.lon,down.lat,state.zoom),next=geo(start.x-dx,start.y-dy,state.zoom);
+  state.lon=next.lon;state.lat=next.lat;draw();
+});
+C.addEventListener('pointerup',e=>{
+  if(!down)return;
+  const moved=down.moved;down=null;
+  if(moved){ids.mapStatus.textContent='移動しました。「地形表示」または「計算開始」を押してください。';return}
+  const b=C.getBoundingClientRect(),{c,w,h}=view();state.point=geo(c.x+e.clientX-b.left-w/2,c.y+e.clientY-b.top-h/2,state.zoom);
+  state.mask=null;clearPointValues();
+  if(state.terrainData){const d=state.terrainData,p=world(state.point.lon,state.point.lat,d.zoom),x=Math.floor(p.x)-d.x0,y=Math.floor(p.y)-d.y0;const elevation=x>=0&&x<d.width&&y>=0&&y<d.height?d.values[y*d.width+x]:NaN;ids.elevation.textContent=Number.isFinite(elevation)?`${elevation.toFixed(1)} m`:'データなし';ids.status.textContent=`選択地点のDEM標高（${d.sourceIds[y*d.width+x]?DEM_LABELS[d.sourceIds[y*d.width+x]-1]:'欠測'}・z${d.zoom}）：${state.point.lat.toFixed(5)}, ${state.point.lon.toFixed(5)}`}else ids.status.textContent='地点を選択しました。「計算開始」を押してください。';
+  draw();
+});
+ids.calculate.addEventListener('click',startAnalysis);ids.terrainButton.addEventListener('click',startTerrain);
+ids.demZoom.addEventListener('change',()=>{stopAnalysis('解像度を変更しました。「地形表示」または「計算開始」を押してください。');Z=Number(ids.demZoom.value)});
+ids.terrainScale.addEventListener('change',()=>stopAnalysis('配色を変更しました。「地形表示」を押してください。'));for(const id of ['radius','slope','relief'])ids[id].addEventListener('change',()=>stopAnalysis('条件を変更しました。「計算開始」を押してください。'));
+document.getElementById('zin').onclick=()=>{stopAnalysis('倍率を変更しました。「地形表示」または「計算開始」を押してください。');state.zoom=Math.min(16,state.zoom+1);draw()};
+document.getElementById('zout').onclick=()=>{stopAnalysis('倍率を変更しました。「地形表示」または「計算開始」を押してください。');state.zoom=Math.max(12,state.zoom-1);draw()};
+document.getElementById('home').onclick=()=>{stopAnalysis('移動しました。「地形表示」または「計算開始」を押してください。');state.lon=136.761;state.lat=35.426;state.zoom=14;draw()};
+let lastWidth=0,lastHeight=0;
+new ResizeObserver(()=>{const w=C.clientWidth,h=C.clientHeight;if(w===lastWidth&&h===lastHeight)return;const changed=lastWidth!==0;lastWidth=w;lastHeight=h;if(changed)stopAnalysis('表示サイズが変わりました。「計算開始」を押してください。');resize()}).observe(C);
+resize();
+</script></body></html>
