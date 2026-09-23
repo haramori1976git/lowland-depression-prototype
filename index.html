@@ -1,12 +1,63 @@
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>平地内の標高差・試作</title>
 <style>
-:root{font-family:system-ui,sans-serif;color:#173043;background:#f4f7f8}*{box-sizing:border-box}body{margin:0}header{background:#143b52;color:white;padding:16px 24px}h1{font-size:1.25rem;margin:0}main{max-width:1640px;margin:auto;padding:18px;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}.panel{background:white;border:1px solid #d4e0e5;border-radius:10px;padding:16px}#map{width:100%;height:min(78vh,900px);min-height:650px;display:block;touch-action:none;cursor:crosshair;background:#dee6e9}label{display:block;margin:12px 0;font-size:.95rem}select,input{font:inherit;padding:6px;width:100%}button{font:inherit;cursor:pointer;padding:8px 12px;border-radius:6px;border:1px solid #67879a;background:#fff}button:hover{background:#e9f4f6}button.primary{background:#176b84;color:#fff;border-color:#176b84;font-weight:700}button.primary:hover{background:#12566b}button.primary:disabled{opacity:.65;cursor:wait}#mapProgress{display:block;width:100%;height:16px;accent-color:#176b84;margin:6px 0 12px}#mapProgress[hidden]{display:none}#terrainLegend[hidden]{display:none}#terrainLegend{margin:8px 0 14px}#terrainRamp{height:17px;border-radius:4px;background:linear-gradient(to right,#25588c,#3ba4b9,#7acc9e,#f5d66b,#c96d38,#f3efe0)}#terrainLabels{position:relative;height:1.7em;font-size:.85rem;color:#304b59;margin-top:4px}#terrainLabels span{position:absolute;top:0}#terrainMin{left:0}#terrainMid{left:50%;transform:translateX(-50%)}#terrainMax{right:0}#terrainLegend.emphasis #terrainMid{left:70%}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.metric{margin:12px 0;padding:10px;background:#eef4f6;border-radius:6px}.metric strong{display:block;font-size:1.3rem;font-variant-numeric:tabular-nums}.sub{font-size:.85rem;color:#47606d}#status{min-height:2em;color:#28516a}.key{display:flex;gap:16px;font-size:.85rem}.swatch{display:inline-block;width:12px;height:12px;vertical-align:middle;margin-right:4px}footer{max-width:1640px;margin:auto;padding:0 18px 30px;color:#445966;font-size:.9rem;line-height:1.6}@media(max-width:760px){main{display:block;padding:10px}.panel{margin-bottom:12px}#map{height:68vh;min-height:400px}}
-</style></head><body><header><h1>平地内の標高差・試作</h1></header><main><section class="panel"><div class="row"><button id="zin">拡大</button><button id="zout">縮小</button><button id="home">岐阜市へ</button><button id="calculate" class="primary">計算開始</button><button id="terrainButton">地形表示</button><span class="sub">地図をドラッグして移動，クリックして地点を選択</span></div><canvas id="map"></canvas><p id="mapStatus" class="sub" role="status">地図を移動して「計算開始」を押してください。</p><progress id="mapProgress" max="100" value="0" hidden aria-label="地形解析の進捗"></progress><div id="terrainLegend" hidden><div id="terrainRamp"></div><div id="terrainLabels"><span id="terrainMin"></span><span id="terrainMid"></span><span id="terrainMax"></span></div><div id="terrainSources" class="sub"></div><div class="sub">標高50 m以下の配色を広げて表示します（切り替え可能）。移動すると色と標高の対応は変わります。</div></div><p class="key"><span><i class="swatch" style="background:#b4bdc4"></i>山地</span><span><i class="swatch" style="background:#f8dc5a"></i>0.5–1 m</span><span><i class="swatch" style="background:#ff9f43"></i>1–2 m</span><span><i class="swatch" style="background:#ec644f"></i>2–3 m</span><span><i class="swatch" style="background:#b52e59"></i>3–5 m</span><span><i class="swatch" style="background:#61266d"></i>5 m以上</span></p><p class="sub">平地内平均との差が0.5 m以上の地点を表示。DEMを粗くすると細かな凹地は見えなくなります。無着色は安全を意味せず，欠測・判定不能も含みます。</p></section><aside class="panel"><label>背景地図 <select id="basemap"><option value="auto" selected>自動（探索時：標準／結果時：淡色）</option><option value="pale-gray">淡色地図（白黒）</option><option value="pale">淡色地図（元の配色）</option><option value="std">標準地図</option></select></label><label>計算用DEMの解像度 <select id="demZoom"><option value="12">ズーム12（速い・粗い）</option><option value="13" selected>ズーム13（標準）</option><option value="14">ズーム14（細かい・遅い）</option></select></label><label>地形表示の配色 <select id="terrainScale"><option value="plain" selected>平野を強調（50 m以下）</option><option value="linear">最小～最大を均等に表示</option></select></label><label>比較半径 <select id="radius"><option value="250">250 m</option><option value="500" selected>500 m</option><option value="1000">1 km</option></select></label><label>平地の傾斜上限 <select id="slope"><option value="3">3°</option><option value="5">5°</option><option value="8" selected>8°</option></select></label><label>周囲150 mの起伏上限 <select id="relief"><option value="15">15 m</option><option value="30">30 m</option><option value="50" selected>50 m</option></select></label><div id="status" role="status">地点を選択してください。</div><div class="metric">地点の標高<strong id="elevation">—</strong></div><div class="metric">全陸地平均との差<strong id="all">—</strong><span class="sub" id="allmean"></span></div><div class="metric">平地内平均との差<strong id="flat">—</strong><span class="sub" id="flatmean"></span></div><div class="metric">円内の平地割合<strong id="share">—</strong></div><p class="sub">標高差＝地点標高 − 円内平均。負の値は周囲より低いことを示します。平地面積が有効画素の10%未満なら判定しません。</p></aside></main><footer>出典：<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院・地理院タイル</a>（標準地図・淡色地図，標高タイル）。標高タイルを加工して作成。傾斜と起伏の閾値は検証前の試験値です。この値は浸水深・洪水危険度・閉じた凹地を表しません。</footer>
+:root{font-family:system-ui,sans-serif;color:#173043;background:#f4f7f8}*{box-sizing:border-box}body{margin:0}header{background:#143b52;color:white;padding:16px 24px}h1{font-size:1.25rem;margin:0}main{max-width:1640px;margin:auto;padding:18px;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}.panel{background:white;border:1px solid #d4e0e5;border-radius:10px;padding:16px}#map{width:100%;height:min(78vh,900px);min-height:650px;display:block;touch-action:none;cursor:crosshair;background:#dee6e9}label{display:block;margin:12px 0;font-size:.95rem}select,input{font:inherit;padding:6px;width:100%}button{font:inherit;cursor:pointer;padding:8px 12px;border-radius:6px;border:1px solid #67879a;background:#fff}button:hover{background:#e9f4f6}button.primary{background:#176b84;color:#fff;border-color:#176b84;font-weight:700}button.primary:hover{background:#12566b}button.primary:disabled{opacity:.65;cursor:wait}#mapProgress{display:block;width:100%;height:16px;accent-color:#176b84;margin:6px 0 12px}#mapProgress[hidden]{display:none}#terrainLegend[hidden]{display:none}#terrainLegend{margin:8px 0 14px}#terrainRamp{height:17px;border-radius:4px;background:linear-gradient(to right,#25588c,#3ba4b9,#7acc9e,#f5d66b,#c96d38,#f3efe0)}#terrainLabels{position:relative;height:1.7em;font-size:.85rem;color:#304b59;margin-top:4px}#terrainLabels span{position:absolute;top:0}#terrainMin{left:0}#terrainMid{left:50%;transform:translateX(-50%)}#terrainMax{right:0}#terrainLegend.emphasis #terrainMid{left:70%}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.row select{width:auto;max-width:240px}.metric{margin:12px 0;padding:10px;background:#eef4f6;border-radius:6px}.metric strong{display:block;font-size:1.3rem;font-variant-numeric:tabular-nums}.sub{font-size:.85rem;color:#47606d}#status{min-height:2em;color:#28516a}.key{display:flex;gap:16px;font-size:.85rem}.swatch{display:inline-block;width:12px;height:12px;vertical-align:middle;margin-right:4px}footer{max-width:1640px;margin:auto;padding:0 18px 30px;color:#445966;font-size:.9rem;line-height:1.6}@media(max-width:760px){main{display:block;padding:10px}.panel{margin-bottom:12px}#map{height:68vh;min-height:400px}}
+</style></head><body><header><h1>平地内の標高差・試作</h1></header><main><section class="panel"><div class="row"><button id="zin">拡大</button><button id="zout">縮小</button><button id="home">岐阜市へ</button><select id="capital" aria-label="県庁所在地の駅へ移動"><option value="">県庁所在地の駅へ…</option></select><button id="calculate" class="primary">計算開始</button><button id="terrainButton">地形表示</button><span class="sub">地図をドラッグして移動，クリックして地点を選択</span></div><canvas id="map"></canvas><p id="mapStatus" class="sub" role="status">地図を移動して「計算開始」を押してください。</p><progress id="mapProgress" max="100" value="0" hidden aria-label="地形解析の進捗"></progress><div id="terrainLegend" hidden><div id="terrainRamp"></div><div id="terrainLabels"><span id="terrainMin"></span><span id="terrainMid"></span><span id="terrainMax"></span></div><div id="terrainSources" class="sub"></div><div class="sub">標高50 m以下の配色を広げて表示します（切り替え可能）。移動すると色と標高の対応は変わります。</div></div><p class="key"><span><i class="swatch" style="background:#b4bdc4"></i>山地</span><span><i class="swatch" style="background:#73d8ec"></i>0.5–1 m</span><span><i class="swatch" style="background:#29afd9"></i>1–2 m</span><span><i class="swatch" style="background:#3975c8"></i>2–3 m</span><span><i class="swatch" style="background:#6651b7"></i>3–5 m</span><span><i class="swatch" style="background:#54228b"></i>5 m以上</span></p><p class="sub">平地内平均との差が0.5 m以上の地点を表示。DEMを粗くすると細かな凹地は見えなくなります。無着色は安全を意味せず，欠測・判定不能も含みます。</p></section><aside class="panel"><label>背景地図 <select id="basemap"><option value="auto" selected>自動（探索時：標準／結果時：淡色）</option><option value="pale-gray">淡色地図（白黒）</option><option value="pale">淡色地図（元の配色）</option><option value="std">標準地図</option></select></label><label>計算用DEMの解像度 <select id="demZoom"><option value="12">ズーム12（速い・粗い）</option><option value="13" selected>ズーム13（標準）</option><option value="14">ズーム14（細かい・遅い）</option></select></label><label>地形表示の配色 <select id="terrainScale"><option value="plain" selected>平野を強調（50 m以下）</option><option value="linear">最小～最大を均等に表示</option></select></label><label>比較半径 <select id="radius"><option value="250">250 m</option><option value="500" selected>500 m</option><option value="1000">1 km</option></select></label><label>平地の傾斜上限 <select id="slope"><option value="3">3°</option><option value="5">5°</option><option value="8" selected>8°</option></select></label><label>周囲150 mの起伏上限 <select id="relief"><option value="15">15 m</option><option value="30">30 m</option><option value="50" selected>50 m</option></select></label><div id="status" role="status">地点を選択してください。</div><div class="metric">地点の標高<strong id="elevation">—</strong></div><div class="metric">全陸地平均との差<strong id="all">—</strong><span class="sub" id="allmean"></span></div><div class="metric">平地内平均との差<strong id="flat">—</strong><span class="sub" id="flatmean"></span></div><div class="metric">円内の平地割合<strong id="share">—</strong></div><p class="sub">標高差＝地点標高 − 円内平均。負の値は周囲より低いことを示します。平地面積が有効画素の10%未満なら判定しません。</p></aside></main><footer>出典：<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院・地理院タイル</a>（標準地図・淡色地図，標高タイル）。標高タイルを加工して作成。傾斜と起伏の閾値は検証前の試験値です。この値は浸水深・洪水危険度・閉じた凹地を表しません。駅付近の位置：<a href="https://ekidata.jp/">駅データ.jp</a>（2019年公開データを参考）。</footer>
 <script type="module">
 let Z=13;const C=document.querySelector('#map'),ctx=C.getContext('2d');
-const ids=Object.fromEntries(['basemap','demZoom','terrainScale','radius','slope','relief','status','elevation','all','flat','allmean','flatmean','share','mapStatus','mapProgress','calculate','terrainButton','terrainLegend','terrainMin','terrainMid','terrainMax','terrainSources'].map(id=>[id,document.getElementById(id)]));
+const ids=Object.fromEntries(['capital','basemap','demZoom','terrainScale','radius','slope','relief','status','elevation','all','flat','allmean','flatmean','share','mapStatus','mapProgress','calculate','terrainButton','terrainLegend','terrainMin','terrainMid','terrainMax','terrainSources'].map(id=>[id,document.getElementById(id)]));
 const state={lat:35.426,lon:136.761,zoom:14,basemap:'auto',point:null,mask:null,busy:0,overlay:null,overlaySeq:0,loadController:null,terrainData:null};
+// Prefectural-capital station positions (lat, lon), approximate map jump targets.
+const CAPITAL_STATIONS=[
+  ['北海道','札幌','札幌',43.068612,141.350768],
+  ['青森県','青森','青森',40.828668,140.734738],
+  ['岩手県','盛岡','盛岡',39.701547,141.136599],
+  ['宮城県','仙台','仙台',38.260027,140.882158],
+  ['秋田県','秋田','秋田',39.716748,140.129931],
+  ['山形県','山形','山形',38.248098,140.327253],
+  ['福島県','福島','福島',37.754123,140.459680],
+  ['茨城県','水戸','水戸',36.370911,140.476760],
+  ['栃木県','宇都宮','宇都宮',36.559246,139.898389],
+  ['群馬県','前橋','前橋',36.383399,139.072833],
+  ['埼玉県','さいたま','浦和',35.858496,139.657109],
+  ['千葉県','千葉','千葉',35.612084,140.114136],
+  ['東京都','東京','東京',35.681391,139.766103],
+  ['神奈川県','横浜','横浜',35.466195,139.622704],
+  ['新潟県','新潟','新潟',37.912299,139.060869],
+  ['富山県','富山','富山',36.701384,137.213091],
+  ['石川県','金沢','金沢',36.578117,136.648166],
+  ['福井県','福井','福井',36.062057,136.223516],
+  ['山梨県','甲府','甲府',35.667054,138.569015],
+  ['長野県','長野','長野',36.643307,138.189101],
+  ['岐阜県','岐阜','岐阜',35.409532,136.756514],
+  ['静岡県','静岡','静岡',34.971629,138.388579],
+  ['愛知県','名古屋','名古屋',35.170694,136.881637],
+  ['三重県','津','津',34.734220,136.510486],
+  ['滋賀県','大津','大津',35.002997,135.864651],
+  ['京都府','京都','京都',34.985465,135.757748],
+  ['大阪府','大阪','大阪',34.702398,135.495188],
+  ['兵庫県','神戸','三ノ宮',34.694766,135.195058],
+  ['奈良県','奈良','奈良',34.680482,135.818935],
+  ['和歌山県','和歌山','和歌山',34.232436,135.191454],
+  ['鳥取県','鳥取','鳥取',35.493953,134.225901],
+  ['島根県','松江','松江',35.463947,133.063871],
+  ['岡山県','岡山','岡山',34.666572,133.918552],
+  ['広島県','広島','広島',34.397446,132.475593],
+  ['山口県','山口','山口',34.172737,131.480985],
+  ['徳島県','徳島','徳島',34.074572,134.551391],
+  ['香川県','高松','高松',34.350754,134.046821],
+  ['愛媛県','松山','松山',33.839954,132.751149],
+  ['高知県','高知','高知',33.566758,133.543522],
+  ['福岡県','福岡','博多',33.590002,130.420622],
+  ['佐賀県','佐賀','佐賀',33.264212,130.297608],
+  ['長崎県','長崎','長崎',32.753085,129.870515],
+  ['熊本県','熊本','熊本',32.789207,130.688499],
+  ['大分県','大分','大分',33.232794,131.606595],
+  ['宮崎県','宮崎','宮崎',31.915742,131.431975],
+  ['鹿児島県','鹿児島','鹿児島中央',31.583727,130.541789],
+  ['沖縄県','那覇','県庁前',26.214446,127.679343],
+];
+CAPITAL_STATIONS.forEach(([pref,city,station],i)=>ids.capital.add(new Option(`${pref}｜${city}（${station}駅）`,String(i))));
 const elevationTiles=new Map(),mapTiles=new Map();const R=6371008.8;
 const world=(lon,lat,z)=>({x:(lon+180)/360*256*2**z,y:(1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*256*2**z});
 const geo=(x,y,z)=>({lon:x/(256*2**z)*360-180,lat:Math.atan(Math.sinh(Math.PI*(1-2*y/(256*2**z))))*180/Math.PI});
@@ -153,7 +204,7 @@ async function computeOverlay(id){
     const out=document.createElement('canvas');out.width=Math.ceil(left+w*ratio)-imageX;out.height=Math.ceil(top+h*ratio)-imageY;
     showProgress(id,'各地点の標高差計算',0,out.height,55,98);
     let colored=0,mountains=0,flatCells=0;
-    const octx=out.getContext('2d'),pixels=octx.createImageData(out.width,out.height),colors=[[248,220,90],[255,159,67],[236,100,79],[181,46,89],[97,38,109]];
+    const octx=out.getContext('2d'),pixels=octx.createImageData(out.width,out.height),colors=[[115,216,236],[41,175,217],[57,117,200],[102,81,183],[84,34,139]];
     for(let oy=0;oy<out.height;oy++){
       const wy=imageY+oy+.5,gy=(wy-y0)/grid,rowIndex=Math.floor(gy);
       for(let ox=0;ox<out.width;ox++){
@@ -274,6 +325,12 @@ C.addEventListener('pointerup',e=>{
   draw();
 });
 ids.calculate.addEventListener('click',startAnalysis);ids.terrainButton.addEventListener('click',startTerrain);
+ids.capital.addEventListener('change',()=>{
+  if(ids.capital.value==='')return;
+  const [pref,city,station,lat,lon]=CAPITAL_STATIONS[Number(ids.capital.value)];
+  state.point=null;stopAnalysis(`${pref} ${city}・${station}駅付近へ移動しました。「計算開始」を押してください。`);
+  state.lat=lat;state.lon=lon;state.zoom=14;ids.capital.value='';draw();
+});
 ids.basemap.addEventListener('change',()=>{state.basemap=ids.basemap.value;draw()});
 ids.demZoom.addEventListener('change',()=>{stopAnalysis('解像度を変更しました。「地形表示」または「計算開始」を押してください。');Z=Number(ids.demZoom.value)});
 ids.terrainScale.addEventListener('change',()=>stopAnalysis('配色を変更しました。「地形表示」を押してください。'));for(const id of ['radius','slope','relief'])ids[id].addEventListener('change',()=>stopAnalysis('条件を変更しました。「計算開始」を押してください。'));
