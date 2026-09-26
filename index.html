@@ -17,12 +17,13 @@
 <meta name="twitter:description" content="周囲の平地と比べて地盤が低い場所を、標高データから探せる地図です。">
 <meta name="twitter:image" content="https://haramori1976git.github.io/lowland-depression-prototype/social-preview-title.jpg">
 <style>
-:root{font-family:system-ui,sans-serif;color:#173043;background:#f4f7f8}*{box-sizing:border-box}body{margin:0}header{background:#143b52;color:white;padding:16px 24px}h1{font-size:1.25rem;margin:0}main{max-width:1640px;margin:auto;padding:18px;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}.panel{background:white;border:1px solid #d4e0e5;border-radius:10px;padding:16px}#map{width:100%;height:min(78vh,900px);min-height:650px;display:block;touch-action:none;cursor:crosshair;background:#dee6e9}label{display:block;margin:12px 0;font-size:.95rem}select,input{font:inherit;padding:6px;width:100%}button{font:inherit;cursor:pointer;padding:8px 12px;border-radius:6px;border:1px solid #67879a;background:#fff}button:hover{background:#e9f4f6}button.primary{background:#176b84;color:#fff;border-color:#176b84;font-weight:700}button.primary:hover{background:#12566b}button.primary:disabled{opacity:.65;cursor:wait}#mapProgress{display:block;width:100%;height:16px;accent-color:#176b84;margin:6px 0 12px}#mapProgress[hidden]{display:none}#terrainLegend[hidden]{display:none}#terrainLegend{margin:8px 0 14px}#terrainRamp{height:17px;border-radius:4px;background:linear-gradient(to right,#25588c,#3ba4b9,#7acc9e,#f5d66b,#c96d38,#f3efe0)}#terrainLabels{position:relative;height:1.7em;font-size:.85rem;color:#304b59;margin-top:4px}#terrainLabels span{position:absolute;top:0}#terrainMin{left:0}#terrainMid{left:50%;transform:translateX(-50%)}#terrainMax{right:0}#terrainLegend.emphasis #terrainMid{left:70%}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.row select{width:auto;max-width:240px}.metric{margin:12px 0;padding:10px;background:#eef4f6;border-radius:6px}.metric strong{display:block;font-size:1.3rem;font-variant-numeric:tabular-nums}.sub{font-size:.85rem;color:#47606d}#status{min-height:2em;color:#28516a}.key{display:flex;gap:16px;font-size:.85rem}.swatch{display:inline-block;width:12px;height:12px;vertical-align:middle;margin-right:4px}footer{max-width:1640px;margin:auto;padding:0 18px 30px;color:#445966;font-size:.9rem;line-height:1.6}@media(max-width:760px){main{display:block;padding:10px}.panel{margin-bottom:12px}#map{height:68vh;min-height:400px}}
-</style></head><body><header><h1>周囲と比べて地盤が低い土地ビューワー</h1></header><main><section class="panel"><div class="row"><button id="zin">拡大</button><button id="zout">縮小</button><button id="home">岐阜市へ</button><select id="capital" aria-label="県庁所在地の駅へ移動"><option value="">県庁所在地の駅へ…</option></select><button id="calculate" class="primary">計算開始</button><button id="terrainButton">地形表示</button><span class="sub">地図をドラッグして移動，クリックして地点を選択</span></div><canvas id="map"></canvas><p id="mapStatus" class="sub" role="status">地図を移動して「計算開始」を押してください。</p><progress id="mapProgress" max="100" value="0" hidden aria-label="地形解析の進捗"></progress><div id="terrainLegend" hidden><div id="terrainRamp"></div><div id="terrainLabels"><span id="terrainMin"></span><span id="terrainMid"></span><span id="terrainMax"></span></div><div id="terrainSources" class="sub"></div><div class="sub">標高50 m以下の配色を広げて表示します（切り替え可能）。移動すると色と標高の対応は変わります。</div></div><p class="key"><span><i class="swatch" style="background:#b4bdc4"></i>山地</span><span><i class="swatch" style="background:#73d8ec"></i>0.5–1 m</span><span><i class="swatch" style="background:#29afd9"></i>1–2 m</span><span><i class="swatch" style="background:#3975c8"></i>2–3 m</span><span><i class="swatch" style="background:#6651b7"></i>3–5 m</span><span><i class="swatch" style="background:#54228b"></i>5 m以上</span></p><p class="sub">平地内平均との差が0.5 m以上の地点を表示。DEMを粗くすると細かな凹地は見えなくなります。無着色は安全を意味せず，欠測・判定不能も含みます。</p></section><aside class="panel"><label>背景地図 <select id="basemap"><option value="auto" selected>自動（探索時：標準／結果時：淡色）</option><option value="pale-gray">淡色地図（白黒）</option><option value="pale">淡色地図（元の配色）</option><option value="std">標準地図</option></select></label><label>計算用DEMの解像度 <select id="demZoom"><option value="12">ズーム12（速い・粗い）</option><option value="13" selected>ズーム13（標準）</option><option value="14">ズーム14（細かい・遅い）</option></select></label><label>地形表示の配色 <select id="terrainScale"><option value="plain" selected>平野を強調（50 m以下）</option><option value="linear">最小～最大を均等に表示</option></select></label><label>比較半径 <select id="radius"><option value="250">250 m</option><option value="500" selected>500 m</option><option value="1000">1 km</option></select></label><label>平地の傾斜上限 <select id="slope"><option value="3">3°</option><option value="5">5°</option><option value="8" selected>8°</option></select></label><label>周囲150 mの起伏上限 <select id="relief"><option value="15">15 m</option><option value="30">30 m</option><option value="50" selected>50 m</option></select></label><div id="status" role="status">地点を選択してください。</div><div class="metric">地点の標高<strong id="elevation">—</strong></div><div class="metric">全陸地平均との差<strong id="all">—</strong><span class="sub" id="allmean"></span></div><div class="metric">平地内平均との差<strong id="flat">—</strong><span class="sub" id="flatmean"></span></div><div class="metric">円内の平地割合<strong id="share">—</strong></div><p class="sub">標高差＝地点標高 − 円内平均。負の値は周囲より低いことを示します。平地面積が有効画素の10%未満なら判定しません。</p></aside></main><footer>出典：<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院・地理院タイル</a>（標準地図・淡色地図，標高タイル）。標高タイルを加工して作成。傾斜と起伏の閾値は検証前の試験値です。この値は浸水深・洪水危険度・閉じた凹地を表しません。駅付近の位置：<a href="https://ekidata.jp/">駅データ.jp</a>（2019年公開データを参考）。</footer>
+:root{font-family:system-ui,sans-serif;color:#173043;background:#f4f7f8}*{box-sizing:border-box}body{margin:0}header{background:#143b52;color:white;padding:16px 24px}h1{font-size:1.25rem;margin:0}main{max-width:1640px;margin:auto;padding:18px;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}.panel{background:white;border:1px solid #d4e0e5;border-radius:10px;padding:16px}#map{width:100%;height:min(78vh,900px);min-height:650px;display:block;touch-action:none;cursor:crosshair;background:#dee6e9}label{display:block;margin:12px 0;font-size:.95rem}select,input{font:inherit;padding:6px;width:100%}button{font:inherit;cursor:pointer;padding:8px 12px;border-radius:6px;border:1px solid #67879a;background:#fff}button:hover{background:#e9f4f6}button.primary{background:#176b84;color:#fff;border-color:#176b84;font-weight:700}button.primary:hover{background:#12566b}button.primary:disabled{opacity:.65;cursor:wait}#mapProgress{display:block;width:100%;height:16px;accent-color:#176b84;margin:6px 0 12px}#mapProgress[hidden]{display:none}#terrainLegend[hidden]{display:none}#terrainLegend{margin:8px 0 14px}#terrainRamp{height:17px;border-radius:4px;background:linear-gradient(to right,#25588c,#3ba4b9,#7acc9e,#f5d66b,#c96d38,#f3efe0)}#terrainLabels{position:relative;height:1.7em;font-size:.85rem;color:#304b59;margin-top:4px}#terrainLabels span{position:absolute;top:0}#terrainMin{left:0}#terrainMid{left:50%;transform:translateX(-50%)}#terrainMax{right:0}#terrainLegend.emphasis #terrainMid{left:70%}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.row select{width:auto;max-width:240px}.search-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px}.search-row input{width:min(420px,100%);flex:1 1 230px}.search-results{display:grid;gap:4px;max-width:620px;margin:6px 0}.search-results button{text-align:left}.search-results[hidden]{display:none}#locationStatus{min-height:1.3em;margin:4px 0 10px}.metric{margin:12px 0;padding:10px;background:#eef4f6;border-radius:6px}.metric strong{display:block;font-size:1.3rem;font-variant-numeric:tabular-nums}.sub{font-size:.85rem;color:#47606d}#status{min-height:2em;color:#28516a}.key{display:flex;gap:16px;font-size:.85rem}.swatch{display:inline-block;width:12px;height:12px;vertical-align:middle;margin-right:4px}footer{max-width:1640px;margin:auto;padding:0 18px 30px;color:#445966;font-size:.9rem;line-height:1.6}@media(max-width:760px){main{display:block;padding:10px}.panel{margin-bottom:12px}#map{height:68vh;min-height:400px}}
+</style></head><body><header><h1>周囲と比べて地盤が低い土地ビューワー</h1></header><main><section class="panel"><div class="row"><button id="zin">拡大</button><button id="zout">縮小</button><button id="home">岐阜市へ</button><select id="capital" aria-label="県庁所在地の駅へ移動"><option value="">県庁所在地の駅へ…</option></select><button id="calculate" class="primary">計算開始</button><button id="terrainButton">地形表示</button><span class="sub">地図をドラッグして移動，クリックして地点を選択</span></div><form id="addressForm" class="search-row" role="search"><input id="addressInput" type="search" aria-label="住所や地名" placeholder="住所や地名を入力（例：岐阜市今沢町）" autocomplete="street-address"><button id="addressButton" type="submit">住所検索</button><button id="locate" type="button">現在地へ</button></form><div id="searchResults" class="search-results" aria-label="検索結果" hidden></div><p id="locationStatus" class="sub" role="status" aria-live="polite"></p><canvas id="map"></canvas><p id="mapStatus" class="sub" role="status">地図を移動して「計算開始」を押してください。</p><progress id="mapProgress" max="100" value="0" hidden aria-label="地形解析の進捗"></progress><div id="terrainLegend" hidden><div id="terrainRamp"></div><div id="terrainLabels"><span id="terrainMin"></span><span id="terrainMid"></span><span id="terrainMax"></span></div><div id="terrainSources" class="sub"></div><div class="sub">標高50 m以下の配色を広げて表示します（切り替え可能）。移動すると色と標高の対応は変わります。</div></div><p class="key"><span><i class="swatch" style="background:#b4bdc4"></i>山地</span><span><i class="swatch" style="background:#73d8ec"></i>0.5–1 m</span><span><i class="swatch" style="background:#29afd9"></i>1–2 m</span><span><i class="swatch" style="background:#3975c8"></i>2–3 m</span><span><i class="swatch" style="background:#6651b7"></i>3–5 m</span><span><i class="swatch" style="background:#54228b"></i>5 m以上</span></p><p class="sub">平地内平均との差が0.5 m以上の地点を表示。DEMを粗くすると細かな凹地は見えなくなります。無着色は安全を意味せず，欠測・判定不能も含みます。</p></section><aside class="panel"><label>背景地図 <select id="basemap"><option value="auto" selected>自動（探索時：標準／結果時：淡色）</option><option value="pale-gray">淡色地図（白黒）</option><option value="pale">淡色地図（元の配色）</option><option value="std">標準地図</option></select></label><label>計算用DEMの解像度 <select id="demZoom"><option value="12">ズーム12（速い・粗い）</option><option value="13" selected>ズーム13（標準）</option><option value="14">ズーム14（細かい・遅い）</option></select></label><label>地形表示の配色 <select id="terrainScale"><option value="plain" selected>平野を強調（50 m以下）</option><option value="linear">最小～最大を均等に表示</option></select></label><label>比較半径 <select id="radius"><option value="250">250 m</option><option value="500" selected>500 m</option><option value="1000">1 km</option></select></label><label>平地の傾斜上限 <select id="slope"><option value="3">3°</option><option value="5">5°</option><option value="8" selected>8°</option></select></label><label>周囲150 mの起伏上限 <select id="relief"><option value="15">15 m</option><option value="30">30 m</option><option value="50" selected>50 m</option></select></label><div id="status" role="status">地点を選択してください。</div><div class="metric">地点の標高<strong id="elevation">—</strong></div><div class="metric">全陸地平均との差<strong id="all">—</strong><span class="sub" id="allmean"></span></div><div class="metric">平地内平均との差<strong id="flat">—</strong><span class="sub" id="flatmean"></span></div><div class="metric">円内の平地割合<strong id="share">—</strong></div><p class="sub">標高差＝地点標高 − 円内平均。負の値は周囲より低いことを示します。平地面積が有効画素の10%未満なら判定しません。</p></aside></main><footer>出典：<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院・地理院タイル</a>（標準地図・淡色地図，標高タイル）。標高タイルを加工して作成。傾斜と起伏の閾値は検証前の試験値です。この値は浸水深・洪水危険度・閉じた凹地を表しません。駅付近の位置：<a href="https://ekidata.jp/">駅データ.jp</a>（2019年公開データを参考）。住所・地名検索：<a href="https://github.com/gsi-cyberjapan/gsimaps">国土地理院・地理院地図の地名検索機能</a>。</footer>
 <script type="module">
 let Z=13;const C=document.querySelector('#map'),ctx=C.getContext('2d');
-const ids=Object.fromEntries(['capital','basemap','demZoom','terrainScale','radius','slope','relief','status','elevation','all','flat','allmean','flatmean','share','mapStatus','mapProgress','calculate','terrainButton','terrainLegend','terrainMin','terrainMid','terrainMax','terrainSources'].map(id=>[id,document.getElementById(id)]));
-const state={lat:35.426,lon:136.761,zoom:14,basemap:'auto',point:null,mask:null,busy:0,overlay:null,overlaySeq:0,loadController:null,terrainData:null};
+const ids=Object.fromEntries(['capital','addressForm','addressInput','addressButton','searchResults','locationStatus','locate','basemap','demZoom','terrainScale','radius','slope','relief','status','elevation','all','flat','allmean','flatmean','share','mapStatus','mapProgress','calculate','terrainButton','terrainLegend','terrainMin','terrainMid','terrainMax','terrainSources'].map(id=>[id,document.getElementById(id)]));
+const state={lat:35.426,lon:136.761,zoom:14,basemap:'auto',point:null,place:null,mask:null,busy:0,overlay:null,overlaySeq:0,loadController:null,terrainData:null};
+let moveSequence=0,searchSequence=0,searchController=null;
 // Prefectural-capital station positions (lat, lon), approximate map jump targets.
 const CAPITAL_STATIONS=[
   ['北海道','札幌','札幌',43.068612,141.350768],
@@ -88,7 +89,12 @@ ctx.save();ctx.filter=activeBasemap()==='pale-gray'?'grayscale(1) brightness(1.0
 for(let ty=Math.floor(top/256);ty<=Math.floor((top+h)/256);ty++)for(let tx=Math.floor(left/256);tx<=Math.floor((left+w)/256);tx++){const im=image(tx,ty);if(im?.complete&&im.naturalWidth)ctx.drawImage(im,tx*256-left,ty*256-top,256,256)}
 ctx.restore();
 if(state.overlay){const o=state.overlay,ratio=2**(Z-state.zoom);ctx.imageSmoothingEnabled=false;ctx.drawImage(o.image,(o.x0-left*ratio)/ratio,(o.y0-top*ratio)/ratio,o.image.width/ratio,o.image.height/ratio);ctx.imageSmoothingEnabled=true}if(state.mask){const m=state.mask,p=world(m.lon,m.lat,state.zoom),scale=2**(state.zoom-Z);ctx.strokeStyle='#dc334c';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x-left,p.y-top,m.radius/mpp(m.lat)*scale,0,Math.PI*2);ctx.stroke()}
-if(state.point){const p=world(state.point.lon,state.point.lat,state.zoom);ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.beginPath();ctx.arc(p.x-left,p.y-top,8,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='#087fbc';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x-left,p.y-top,8,0,Math.PI*2);ctx.stroke()}}
+if(state.point){const p=world(state.point.lon,state.point.lat,state.zoom);ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.beginPath();ctx.arc(p.x-left,p.y-top,8,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='#087fbc';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x-left,p.y-top,8,0,Math.PI*2);ctx.stroke()}
+if(state.place){const q=state.place,p=world(q.lon,q.lat,state.zoom),x=p.x-left,y=p.y-top;
+  if(q.kind==='current'&&q.accuracy>0){const metersPerPixel=2*Math.PI*R*Math.cos(q.lat*Math.PI/180)/(256*2**state.zoom);ctx.fillStyle='rgba(20,111,177,.10)';ctx.strokeStyle='rgba(20,111,177,.55)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y,q.accuracy/metersPerPixel,0,Math.PI*2);ctx.fill();ctx.stroke()}
+  ctx.fillStyle=q.kind==='current'?'#146fb1':'#a33e72';ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.font='bold 13px system-ui,sans-serif';ctx.textAlign='left';ctx.lineWidth=3;ctx.strokeStyle='#fff';ctx.strokeText(q.kind==='current'?'取得時の現在地':'検索位置',x+12,y-10);ctx.fillStyle='#173043';ctx.fillText(q.kind==='current'?'取得時の現在地':'検索位置',x+12,y-10);
+}}
 function decode(r,g,b){const u=r*65536+g*256+b;if(u===8388608)return NaN;return (u<8388608?u:u-16777216)*.01}
 const DEM_SOURCES=['dem1a_png','dem5a_png','dem5b_png','dem5c_png','dem_png'];
 const DEM_LABELS=['DEM1A','DEM5A','DEM5B','DEM5C','DEM10B'];
@@ -145,6 +151,7 @@ const allMean=allSum/allN,share=flatN/allN,flatMean=flatSum/flatN;ids.elevation.
 // Each DEM pixel is classified once. Circular area sums then use row prefixes.
 function clearPointValues(){for(const name of ['elevation','all','flat','share'])ids[name].textContent='—';ids.allmean.textContent=ids.flatmean.textContent=''}
 function stopAnalysis(message){
+  ++moveSequence;
   state.loadController?.abort();state.loadController=null;
   ++state.overlaySeq;++state.busy;state.overlay=null;state.mask=null;state.terrainData=null;
   ids.calculate.disabled=false;ids.calculate.textContent='計算開始';ids.terrainButton.disabled=false;ids.terrainButton.textContent='地形表示';ids.terrainLegend.hidden=true;ids.mapProgress.hidden=true;ids.mapProgress.value=0;
@@ -321,6 +328,66 @@ async function computeTerrain(id){
   }catch(e){if(id===state.overlaySeq){ids.terrainButton.disabled=false;ids.terrainButton.textContent='地形表示';ids.mapProgress.hidden=true;ids.mapStatus.textContent=`地形表示に失敗しました：${e.message}`}}
 }
 
+// Search only on submit. The query is sent to the GSI place-name service.
+ids.locationStatus.textContent='住所検索には国土地理院の地名検索サービスを利用します。';
+function hideSearchResults(){ids.searchResults.replaceChildren();ids.searchResults.hidden=true}
+ids.addressInput.addEventListener('input',()=>{
+  ++searchSequence;searchController?.abort();searchController=null;
+  ids.addressButton.disabled=false;hideSearchResults();
+  ids.locationStatus.textContent='住所検索には国土地理院の地名検索サービスを利用します。';
+});
+ids.addressForm.addEventListener('submit',async event=>{
+  event.preventDefault();const query=ids.addressInput.value.trim();
+  if(query.length<2){ids.locationStatus.textContent='住所・地名を2文字以上入力してください。';return}
+  searchController?.abort();const controller=new AbortController(),sequence=++searchSequence;
+  searchController=controller;hideSearchResults();ids.addressButton.disabled=true;
+  ids.locationStatus.textContent='住所・地名を検索中…';
+  const timer=setTimeout(()=>controller.abort(),12000);
+  try{
+    const url=`https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(query)}`;
+    const response=await fetch(url,{signal:controller.signal});
+    if(!response.ok)throw Error(`検索サービス HTTP ${response.status}`);
+    const data=await response.json();if(sequence!==searchSequence)return;
+    const raw=Array.isArray(data)?data:Array.isArray(data.features)?data.features:[];
+    const candidates=raw.map(item=>({title:item?.properties?.title,lon:Number(item?.geometry?.coordinates?.[0]),lat:Number(item?.geometry?.coordinates?.[1])}))
+      .filter(item=>typeof item.title==='string'&&item.title.trim()&&Number.isFinite(item.lat)&&Number.isFinite(item.lon)&&item.lat>=20&&item.lat<=46&&item.lon>=122&&item.lon<=154).slice(0,8);
+    if(!candidates.length){ids.locationStatus.textContent='該当する候補が見つかりませんでした。住所を短くしてお試しください。';return}
+    for(const place of candidates){
+      const button=document.createElement('button');button.type='button';button.textContent=place.title;
+      button.addEventListener('click',()=>{
+        if(sequence!==searchSequence)return;
+        state.point=null;stopAnalysis(`${place.title}付近へ移動しました。「計算開始」を押してください。`);
+        state.lat=place.lat;state.lon=place.lon;state.zoom=14;state.place={lat:place.lat,lon:place.lon};
+        ids.locationStatus.textContent=`検索位置：${place.title}（住所の代表地点の場合があります）`;
+        hideSearchResults();draw();
+      });ids.searchResults.append(button);
+    }
+    ids.searchResults.hidden=false;ids.locationStatus.textContent=`候補${candidates.length}件。該当する場所を選んでください。`;
+  }catch(error){
+    if(sequence===searchSequence)ids.locationStatus.textContent=controller.signal.aborted?'検索が時間切れになりました。もう一度お試しください。':`検索できませんでした：${error.message}`;
+  }finally{
+    clearTimeout(timer);if(sequence===searchSequence){searchController=null;ids.addressButton.disabled=false}
+  }
+});
+ids.locate.addEventListener('click',()=>{
+  if(!navigator.geolocation){ids.locationStatus.textContent='このブラウザでは現在地を取得できません。';return}
+  if(!window.isSecureContext){ids.locationStatus.textContent='現在地の取得にはHTTPSまたはlocalhostで開いてください。';return}
+  const expectedMove=moveSequence;ids.locate.disabled=true;ids.locationStatus.textContent='現在地を取得中…位置情報の利用を許可してください。';
+  navigator.geolocation.getCurrentPosition(position=>{
+    ids.locate.disabled=false;if(expectedMove!==moveSequence)return;
+    const {latitude:lat,longitude:lon,accuracy}=position.coords;
+    if(!Number.isFinite(lat)||!Number.isFinite(lon)){ids.locationStatus.textContent='位置情報を読み取れませんでした。';return}
+    state.point=null;stopAnalysis('現在地付近へ移動しました。「計算開始」を押してください。');
+    const measuredAccuracy=Number.isFinite(accuracy)?Math.max(0,accuracy):null;
+    state.lat=lat;state.lon=lon;state.zoom=14;state.place={lat,lon,accuracy:measuredAccuracy,kind:'current'};
+    hideSearchResults();ids.locationStatus.textContent=`取得時の現在地：${lat.toFixed(5)}, ${lon.toFixed(5)}${measuredAccuracy===null?'（精度不明）':`（推定精度 約${Math.round(measuredAccuracy).toLocaleString()} m）`}`;
+    draw();
+  },error=>{
+    ids.locate.disabled=false;if(expectedMove!==moveSequence)return;
+    ids.locationStatus.textContent=error.code===1?'位置情報が許可されませんでした。ブラウザの設定を確認してください。':error.code===3?'現在地の取得が時間切れになりました。もう一度お試しください。':'現在地を取得できませんでした。端末の位置情報設定を確認してください。';
+  },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+});
+
 let down=null;
 C.addEventListener('pointerdown',e=>{C.setPointerCapture(e.pointerId);down={x:e.clientX,y:e.clientY,lon:state.lon,lat:state.lat,moved:false}});
 C.addEventListener('pointermove',e=>{
@@ -345,14 +412,14 @@ ids.capital.addEventListener('change',()=>{
   if(ids.capital.value==='')return;
   const [pref,city,station,lat,lon]=CAPITAL_STATIONS[Number(ids.capital.value)];
   state.point=null;stopAnalysis(`${pref} ${city}・${station}駅付近へ移動しました。「計算開始」を押してください。`);
-  state.lat=lat;state.lon=lon;state.zoom=14;ids.capital.value='';draw();
+  state.lat=lat;state.lon=lon;state.zoom=14;state.place=null;ids.capital.value='';draw();
 });
 ids.basemap.addEventListener('change',()=>{state.basemap=ids.basemap.value;draw()});
 ids.demZoom.addEventListener('change',()=>{stopAnalysis('解像度を変更しました。「地形表示」または「計算開始」を押してください。');Z=Number(ids.demZoom.value)});
 ids.terrainScale.addEventListener('change',()=>stopAnalysis('配色を変更しました。「地形表示」を押してください。'));for(const id of ['radius','slope','relief'])ids[id].addEventListener('change',()=>stopAnalysis('条件を変更しました。「計算開始」を押してください。'));
 document.getElementById('zin').onclick=()=>{stopAnalysis('倍率を変更しました。「地形表示」または「計算開始」を押してください。');state.zoom=Math.min(16,state.zoom+1);draw()};
 document.getElementById('zout').onclick=()=>{stopAnalysis('倍率を変更しました。「地形表示」または「計算開始」を押してください。');state.zoom=Math.max(12,state.zoom-1);draw()};
-document.getElementById('home').onclick=()=>{stopAnalysis('移動しました。「地形表示」または「計算開始」を押してください。');state.lon=136.761;state.lat=35.426;state.zoom=14;draw()};
+document.getElementById('home').onclick=()=>{stopAnalysis('移動しました。「地形表示」または「計算開始」を押してください。');state.lon=136.761;state.lat=35.426;state.zoom=14;state.place=null;draw()};
 let lastWidth=0,lastHeight=0;
 new ResizeObserver(()=>{const w=C.clientWidth,h=C.clientHeight;if(w===lastWidth&&h===lastHeight)return;const changed=lastWidth!==0;lastWidth=w;lastHeight=h;if(changed)stopAnalysis('表示サイズが変わりました。「計算開始」を押してください。');resize()}).observe(C);
 resize();
